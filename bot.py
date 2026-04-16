@@ -415,6 +415,34 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 def main() -> None:
+    # 1) Render yêu cầu một ứng dụng Web Service phải mở một cổng (port).
+    # Nếu không, Render sẽ báo lỗi "No open ports detected" và hủy deploy.
+    # Ta tạo một HTTP server giả chạy ngầm trên một luồng (thread) phụ để vượt qua bài kiểm tra của Render.
+    import os
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    def run_dummy_server():
+        port = int(os.environ.get("PORT", 10000))
+        server_address = ("0.0.0.0", port)
+        class DummyHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"Bot is alive!")
+        httpd = HTTPServer(server_address, DummyHandler)
+        httpd.serve_forever()
+
+    threading.Thread(target=run_dummy_server, daemon=True).start()
+
+    # 2) Sửa lỗi "RuntimeError: There is no current event loop in thread"
+    # trên Python 3.14+ (môi trường mặc định mới của Render)
+    import asyncio
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
     app = Application.builder().token(settings.telegram_bot_token).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu_cmd))
