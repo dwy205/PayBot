@@ -25,7 +25,7 @@ class Settings:
 
 def get_settings() -> Settings:
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-    llm_provider = os.getenv("LLM_PROVIDER", "openai").strip().lower()
+    llm_provider = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
     model = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
@@ -43,8 +43,10 @@ def get_settings() -> Settings:
         raise ValueError("Missing OPENAI_API_KEY when LLM_PROVIDER=openai.")
     if llm_provider == "gemini" and not gemini_key:
         raise ValueError("Missing GEMINI_API_KEY when LLM_PROVIDER=gemini.")
-    if not payos_client_id or not payos_api_key or not payos_checksum_key:
-        raise ValueError("Missing PAYOS credentials in environment variables.")
+    
+    # Bỏ qua lỗi PayOS nếu chưa tới giai đoạn này
+    # if not payos_client_id or not payos_api_key or not payos_checksum_key:
+    #     raise ValueError("Missing PAYOS credentials in environment variables.")
 
     return Settings(
         telegram_bot_token=token,
