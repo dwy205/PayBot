@@ -16,8 +16,12 @@ class LLMService:
     ) -> None:
         self.provider = provider.lower().strip()
         self.model = model
-        self.openai_client = OpenAI(api_key=openai_api_key) if openai_api_key else None
-        if gemini_api_key:
+        self.openai_client = (
+            OpenAI(api_key=openai_api_key)
+            if self.provider == "openai" and openai_api_key
+            else None
+        )
+        if self.provider == "gemini" and gemini_api_key:
             genai.configure(api_key=gemini_api_key)
 
     def recommend(self, message: str, menu_text: str) -> str:
