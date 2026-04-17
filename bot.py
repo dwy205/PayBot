@@ -189,8 +189,8 @@ async def checkout_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             amount=total,
             description=f"{settings.store_name[:15]}-{user_id}",
         )
-    except Exception:
-        await update.message.reply_text("Khong tao duoc QR payOS. Vui long thu lai sau.")
+    except Exception as exc:
+        await update.message.reply_text(f"Khong tao duoc QR payOS: {str(exc)[:300]}")
         return
 
     context.user_data["pending_payment_order_code"] = payment.order_code
@@ -301,8 +301,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 amount=total,
                 description=f"{settings.store_name[:15]}-{user_id}",
             )
-        except Exception:
-            await query.message.reply_text("Khong tao duoc QR payOS. Vui long thu lai sau.")
+        except Exception as exc:
+            await query.message.reply_text(f"Khong tao duoc QR payOS: {str(exc)[:300]}")
             return
         context.user_data["pending_payment_order_code"] = payment.order_code
         context.user_data["payment_verified"] = False

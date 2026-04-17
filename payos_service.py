@@ -6,6 +6,7 @@ from random import randint
 from typing import Any
 
 import requests
+from requests import HTTPError
 
 
 @dataclass(frozen=True)
@@ -68,19 +69,36 @@ class PayOSService:
             "cancelUrl": self.cancel_url,
             "signature": self._sign(signature_data),
         }
-        response = requests.post(
-            f"{self.base_url}/v2/payment-requests",
-            json=body,
-            headers=self._headers(),
-            timeout=20,
-        )
-        response.raise_for_status()
+        try:
+            response = requests.post(
+                f"{self.base_url}/v2/payment-requests",
+                json=body,
+                headers=self._headers(),
+                timeout=20,
+            )
+            response.raise_for_status()
+        except HTTPError as exc:
+            detail = ""
+            if exc.response is not None:
+                detail = exc.response.text.strip()
+            raise ValueError(f"PayOS HTTP error: {detail or str(exc)}") from exc
+
         payload: dict[str, Any] = response.json()
+        code = str(payload.get("code", ""))
+        desc = str(payload.get("desc", ""))
+        if code and code != "00":
+            raise ValueError(f"PayOS error {code}: {desc}")
+
         data = payload.get("data", {})
+        checkout_url = str(data.get("checkoutUrl", ""))
+        qr_code_text = str(data.get("qrCode", ""))
+        if not checkout_url or not qr_code_text:
+            raise ValueError(f"PayOS response missing checkout URL/QR. Raw: {payload}")
+
         return PaymentInfo(
             order_code=order_code,
-            checkout_url=str(data.get("checkoutUrl", "")),
-            qr_code_text=str(data.get("qrCode", "")),
+            checkout_url=checkout_url,
+            qr_code_text=qr_code_text,
         )
 
     def is_paid(self, order_code: int) -> bool:
