@@ -1,4 +1,6 @@
 import csv
+import re
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -20,7 +22,13 @@ class MenuService:
         self.csv_path = Path(csv_path)
         self.items: Dict[str, MenuItem] = {}
         self._name_index: Dict[str, str] = {}
+        self._normalized_name_index: Dict[str, str] = {}
         self._load()
+
+    def _normalize_text(self, text: str) -> str:
+        raw = unicodedata.normalize("NFD", text.lower().strip())
+        no_accents = "".join(ch for ch in raw if unicodedata.category(ch) != "Mn")
+        return re.sub(r"\s+", " ", no_accents)
 
     def _load(self) -> None:
         with self.csv_path.open(mode="r", encoding="utf-8") as file:
@@ -37,16 +45,20 @@ class MenuService:
                 )
                 self.items[item.item_id] = item
                 self._name_index[item.name.lower()] = item.item_id
+                self._normalized_name_index[self._normalize_text(item.name)] = item.item_id
 
     def find_item(self, text: str) -> Optional[MenuItem]:
         normalized = text.strip().lower()
+        normalized_no_accent = self._normalize_text(text)
         if normalized in self.items:
             return self.items[normalized]
         if normalized in self._name_index:
             return self.items[self._name_index[normalized]]
+        if normalized_no_accent in self._normalized_name_index:
+            return self.items[self._normalized_name_index[normalized_no_accent]]
 
         for item in self.items.values():
-            if normalized in item.name.lower():
+            if normalized in item.name.lower() or normalized_no_accent in self._normalize_text(item.name):
                 return item
         return None
 

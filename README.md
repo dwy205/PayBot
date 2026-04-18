@@ -1,116 +1,156 @@
-# [Project] AI Milk Tea Bot - Casso Entry Test 2026
+# AI Milk Tea Bot - CASSO Entry Test 2026
 
-## 1. Thông tin chung
-* [cite_start]**Công ty:** CASSO COMPANY LIMITED 
-* [cite_start]**Vị trí:** Intern Software Engineer 2026 
-* [cite_start]**Thời hạn hoàn thành:** 72 giờ kể từ khi nhận đề 
+Telegram chatbot for milk tea ordering, built for the CASSO Intern Software Engineer 2026 entry assignment.
 
----
+## Overview
 
-## 2. Bối cảnh dự án
-Mẹ bạn mở quán trà sữa bán tại cửa hàng và online qua tin nhắn. Tuy nhiên, lượng đơn tăng cao khiến việc trả lời bị chậm, thiếu thông tin và gây nhầm lẫn
+This project implements an AI-powered ordering assistant that:
+- Recommends drinks from `Menu.csv`
+- Supports natural-language ordering
+- Supports guided ordering via inline buttons
+- Creates QR payment links via payOS
+- Verifies payment status and collects delivery info
+- Outputs a preparation note for store staff
 
-[cite_start]**Mục tiêu:** Xây dựng một AI Bot (bản sao AI của mẹ) để tự động hóa quy trình đặt hàng[cite: 15].
+## Key Features
 
----
+- **Guided ordering flow**: `/menu` -> category -> item -> size -> toppings
+- **Natural-language flow**: parse order intent, quantity, size, and toppings
+- **Cart management**: `/cart`, `/clear`
+- **Checkout flow**: `/checkout` + payment confirmation + shipping information
+- **Delivery information gate**: only accepts delivery details after payment is verified
+- **Test mode (no real payment)** via `TEST_SKIP_PAYMENT=true`
 
-## 3. Yêu cầu kỹ thuật & Tính năng
-### Nhiệm vụ chính
-* [cite_start]**Nền tảng:** Hoạt động trên Telegram[cite: 15].
-* [cite_start]**Cốt lõi:** Ứng dụng các mô hình ngôn ngữ lớn (LLM) để giao tiếp[cite: 15].
-* **Chức năng:**
-    * [cite_start]Tư vấn món dựa trên menu (file CSV kèm theo)[cite: 11, 15].
-    * [cite_start]Hỗ trợ đặt món và tính tiền cho khách[cite: 15].
-    * [cite_start]Tổng hợp thông tin đơn hàng sau khi thanh toán để chuẩn bị món và giao hàng[cite: 16].
+## Tech Stack
 
-### Khuyến khích (Cộng điểm)
-* [cite_start]Sử dụng **payOS** để tạo QR thanh toán và xác nhận thanh toán tự động[cite: 26].
-* [cite_start]Deploy lên server để Ban giám khảo có thể testing trực tiếp[cite: 22].
+- Python 3.10+
+- `python-telegram-bot`
+- LLM provider: Gemini or OpenAI
+- payOS API for payment link + status checking
+- Render for deployment (polling mode)
 
----
+## Project Structure
 
-## 4. Danh mục nộp bài (Deliverables)
-[cite_start]Bài nộp gửi về **hr@cas.so** bao gồm[cite: 18]:
+- `bot.py`: Telegram handlers and conversation flow
+- `config.py`: environment loading and validation
+- `menu_service.py`: menu loading/search from CSV
+- `llm_service.py`: recommendation and order parsing
+- `order_service.py`: cart/order calculations and prep note
+- `payos_service.py`: payOS integration
+- `Menu.csv`: menu source data
 
-1. [cite_start]**Video demo:** Link Google Drive hoặc Youtube[cite: 19].
-2. [cite_start]**Mã nguồn:** Link Repo (Github, GitLab,...)[cite: 20].
-3. [cite_start]**Tài liệu phân tích giải pháp:** File PDF[cite: 21].
-4. [cite_start]**Link Bot:** Tên Bot đã deploy (nếu có)[cite: 22].
+## Prerequisites
 
----
+- A Telegram bot token from BotFather
+- One LLM API key:
+  - Gemini: `GEMINI_API_KEY`
+  - OpenAI: `OPENAI_API_KEY`
+- payOS credentials (for real payment flow)
 
-## 5. Lưu ý quan trọng
-* [cite_start]**Đánh giá:** Thang điểm dựa trên khả năng vận hành hiệu quả thực tế[cite: 24].
-* [cite_start]**Hỗ trợ:** Có thể yêu cầu BTC cấp OpenAI API Key nếu cần[cite: 25].
-* [cite_start]**Vibe code:** Cho phép dùng AI hỗ trợ viết code nhưng phải hiểu và kiểm soát được mã nguồn[cite: 27].
+## Environment Variables
 
----
+Create `.env` from `.env.example` and fill values:
 
-## 6. Cách chạy bot (bản đã implement)
+- `TELEGRAM_BOT_TOKEN`
+- `LLM_PROVIDER` (`gemini` or `openai`)
+- `GEMINI_API_KEY`, `GEMINI_MODEL` (if using Gemini)
+- `OPENAI_API_KEY`, `OPENAI_MODEL` (if using OpenAI)
+- `STORE_NAME` (optional)
+- `PAYOS_CLIENT_ID`
+- `PAYOS_API_KEY`
+- `PAYOS_CHECKSUM_KEY`
+- `PAYOS_RETURN_URL`
+- `PAYOS_CANCEL_URL`
+- `TEST_SKIP_PAYMENT` (`false` for production, `true` for local testing)
 
-### Công nghệ dùng
-- Python + `python-telegram-bot`
-- LLM API (OpenAI hoặc Gemini) để:
-  - tư vấn món theo ngữ cảnh menu
-  - trích xuất ý định đặt món từ tin nhắn tự nhiên
-- payOS API để tạo link/QR thanh toán thật và kiểm tra trạng thái thanh toán
+## Local Setup
 
-### Tính năng đã có
-- Đọc menu từ `Menu.csv`
-- `/menu`: flow nút bấm chọn món theo từng bước:
-  - chọn danh mục
-  - chọn món
-  - chọn size
-  - chọn topping
-- Chat tự nhiên để:
-  - tư vấn món
-  - đặt món (tên món, size M/L, số lượng, topping)
-- `/cart`: xem giỏ và tổng tiền
-- `/checkout`: tạo mã QR payOS theo tổng tiền
-- Chỉ cho phép nhập thông tin giao hàng sau khi giao dịch đã được xác nhận thanh toán
-- Xuất tóm tắt đơn hàng để quán chuẩn bị món/giao hàng
+### Windows (PowerShell)
 
-### Cài đặt
-1. Tạo virtual environment (khuyến nghị)
-2. Cài dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Tạo file `.env` từ `.env.example` và điền:
-   - `TELEGRAM_BOT_TOKEN`
-   - `LLM_PROVIDER` (`openai` hoặc `gemini`)
-   - Nếu dùng OpenAI: `OPENAI_API_KEY`, `OPENAI_MODEL`
-   - Nếu dùng Gemini: `GEMINI_API_KEY`, `GEMINI_MODEL`
-   - `PAYOS_CLIENT_ID`
-   - `PAYOS_API_KEY`
-   - `PAYOS_CHECKSUM_KEY`
-   - `PAYOS_RETURN_URL`
-   - `PAYOS_CANCEL_URL`
-   - (tuỳ chọn) `STORE_NAME`
-
-### Chạy bot
-```bash
+```powershell
+cd c:\Me\bk\HK252\bot
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+copy .env.example .env
 python bot.py
 ```
 
-### Deploy Telegram bot (polling)
-1. Đưa code lên Github.
-2. Tạo service Python trên Render/Railway.
-3. Set Start Command: `python bot.py`.
-4. Thêm toàn bộ biến môi trường trong `.env.example`.
-5. Deploy xong, bot sẽ online 24/7 và nhận tin nhắn Telegram.
+### macOS/Linux
 
-### Gợi ý test nhanh trên Telegram
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python bot.py
+```
+
+## Telegram Commands
+
+- `/start`: welcome message and quick guide
+- `/menu`: guided ordering with buttons
+- `/cart`: current cart summary
+- `/checkout`: create payment QR and continue checkout
+- `/clear`: clear current cart
+
+## Quick Test Scenarios
+
+### Scenario A: Guided flow
 1. `/start`
 2. `/menu`
-3. Nhắn: `Dat 2 tra chanh leo size L them tran chau den`
+3. Pick item/size/toppings
 4. `/cart`
 5. `/checkout`
-6. Gửi: `Nguyen Van A | 0909000111 | 12 Le Loi, Q1`
+6. Tap `Toi da thanh toan`
+7. Send: `Ten | So dien thoai | Dia chi`
 
-### Cấu trúc file chính
-- `bot.py`: entrypoint và Telegram handlers
-- `menu_service.py`: đọc/tìm menu
-- `llm_service.py`: gọi OpenAI cho tư vấn + parse order
-- `order_service.py`: quản lý giỏ hàng/tính tổng/tóm tắt đơn
-- `config.py`: đọc biến môi trường
+### Scenario B: Natural-language flow
+1. Send: `Dat 2 tra chanh leo size L them tran chau den`
+2. `/cart`
+3. `/checkout`
+
+## Test Mode (No Real Payment)
+
+Use this mode for local testing when you do not want to pay:
+
+- Set `TEST_SKIP_PAYMENT=true`
+- Bot sends a mock QR and bypasses payOS verification when tapping `Toi da thanh toan`
+- Full delivery-info and prep-note flow can still be tested end-to-end
+
+Important:
+- Keep `TEST_SKIP_PAYMENT=false` on deployed/public environments
+
+## Deployment (Render, Polling)
+
+1. Push source code to GitHub
+2. Create a Python Web Service on Render
+3. Start command: `python bot.py`
+4. Add all environment variables from `.env.example`
+5. Deploy and verify bot responses on Telegram
+
+## Keep-Alive on Free Tier
+
+Render free instances may sleep on inactivity. To reduce cold starts:
+
+1. Create a UptimeRobot HTTP monitor for your Render URL
+2. Interval: every 5 minutes
+3. This project already exposes an internal health server and supports `HEAD` requests
+
+Note:
+- Free tier cannot guarantee strict 24/7 uptime
+- For best stability, paid plans are recommended
+
+## Common Issues
+
+- `Missing TELEGRAM_BOT_TOKEN`: `.env` missing token or wrong file name
+- `Conflict: terminated by other getUpdates request`: same token running in multiple places (local + Render)
+- No QR in local: payOS credentials missing; use `TEST_SKIP_PAYMENT=true` for mock checkout testing
+
+## Submission Checklist (for HR)
+
+- Source code repository link
+- Demo video link
+- Solution analysis PDF
+- Telegram bot link (`https://t.me/<bot_username>`)
+- Deployed bot URL (if provided)

@@ -21,6 +21,7 @@ class Settings:
     payos_checksum_key: str
     payos_return_url: str
     payos_cancel_url: str
+    test_skip_payment: bool
 
 
 def get_settings() -> Settings:
@@ -36,6 +37,7 @@ def get_settings() -> Settings:
     payos_checksum_key = os.getenv("PAYOS_CHECKSUM_KEY", "").strip()
     payos_return_url = os.getenv("PAYOS_RETURN_URL", "https://example.com/payment/success").strip()
     payos_cancel_url = os.getenv("PAYOS_CANCEL_URL", "https://example.com/payment/cancel").strip()
+    test_skip_payment = os.getenv("TEST_SKIP_PAYMENT", "false").strip().lower() in ("1", "true", "yes", "on")
 
     if not token:
         raise ValueError("Missing TELEGRAM_BOT_TOKEN in environment variables.")
@@ -61,4 +63,5 @@ def get_settings() -> Settings:
         payos_checksum_key=payos_checksum_key,
         payos_return_url=payos_return_url,
         payos_cancel_url=payos_cancel_url,
+        test_skip_payment=test_skip_payment,
     )

@@ -1,4 +1,6 @@
 import io
+import re
+import unicodedata
 
 import qrcode
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -45,6 +47,60 @@ def _match_toppings(raw_toppings: list[str]) -> tuple[list[str], int]:
             matched.append(item.name)
             total_price += item.price_m
     return matched, total_price
+
+
+def _normalize_text(text: str) -> str:
+    raw = unicodedata.normalize("NFD", text.lower().strip())
+    no_accents = "".join(ch for ch in raw if unicodedata.category(ch) != "Mn")
+    return re.sub(r"\s+", " ", no_accents)
+
+
+def _fallback_parse_order(message: str) -> dict:
+    normalized_msg = _normalize_text(message)
+
+    quantity = 1
+    quantity_match = re.search(r"\b(?:dat|them|goi|order)?\s*(\d+)\s*(?:ly|mon|phan|coc)?\b", normalized_msg)
+    if quantity_match:
+        quantity = max(1, int(quantity_match.group(1)))
+
+    size = "M"
+    size_match = re.search(r"\bsize\s*([ml])\b", normalized_msg)
+    if size_match:
+        size = size_match.group(1).upper()
+
+    drink_candidates = [
+        item for item in menu_service.all_items() if item.available and item.category.lower() != "topping"
+    ]
+    drink_candidates.sort(key=lambda item: len(item.name), reverse=True)
+    matched_item = None
+    for item in drink_candidates:
+        if _normalize_text(item.name) in normalized_msg:
+            matched_item = item
+            break
+
+    matched_toppings: list[str] = []
+    for top in _topping_items():
+        if _normalize_text(top.name) in normalized_msg:
+            matched_toppings.append(top.name)
+
+    if matched_item:
+        return {
+            "action": "add",
+            "item": matched_item.name,
+            "size": size,
+            "quantity": quantity,
+            "toppings": matched_toppings,
+            "note": "fallback_parser",
+        }
+
+    return {
+        "action": "other",
+        "item": "",
+        "size": "M",
+        "quantity": 1,
+        "toppings": [],
+        "note": "fallback_no_item",
+    }
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -184,6 +240,16 @@ async def checkout_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     total = order_service.total(user_id)
+    if settings.test_skip_payment:
+        context.user_data["pending_payment_order_code"] = f"TEST-{user_id}"
+        context.user_data["payment_verified"] = False
+        await _send_payment_qr(
+            update.message,
+            total,
+            f"TEST_PAYMENT_{user_id}_{total}",
+            "https://example.com/test-payment",
+        )
+        return
     try:
         payment = payos_service.create_payment(
             amount=total,
@@ -296,6 +362,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await query.edit_message_text("Gio hang trong. Bam /menu de dat mon.")
             return
         total = order_service.total(user_id)
+        if settings.test_skip_payment:
+            context.user_data["pending_payment_order_code"] = f"TEST-{user_id}"
+            context.user_data["payment_verified"] = False
+            await _send_payment_qr(
+                query.message,
+                total,
+                f"TEST_PAYMENT_{user_id}_{total}",
+                "https://example.com/test-payment",
+            )
+            return
         try:
             payment = payos_service.create_payment(
                 amount=total,
@@ -313,6 +389,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         order_code = context.user_data.get("pending_payment_order_code")
         if not order_code:
             await query.message.reply_text("Chua co don thanh toan nao. Bam /checkout de tao QR.")
+            return
+        if settings.test_skip_payment:
+            context.user_data["payment_verified"] = True
+            context.user_data["awaiting_checkout_info"] = True
+            await query.message.reply_text(
+                "(TEST MODE) Da bo qua xac nhan thanh toan.\n"
+                "Vui long gui thong tin giao hang: Ten | So dien thoai | Dia chi"
+            )
             return
         try:
             paid = payos_service.is_paid(int(order_code))
@@ -373,7 +457,23 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
 
     menu_text = menu_service.menu_for_prompt()
-    parsed = llm_service.parse_order(text, menu_text)
+    try:
+        parsed = llm_service.parse_order(text, menu_text)
+    except Exception:
+        parsed = {
+            "action": "other",
+            "item": "",
+            "size": "M",
+            "quantity": 1,
+            "toppings": [],
+            "note": "llm_parse_error",
+        }
+
+    parsed_item = menu_service.find_item(parsed.get("item", ""))
+    if parsed.get("action") != "add" or parsed_item is None:
+        fallback = _fallback_parse_order(text)
+        if fallback["action"] == "add":
+            parsed = fallback
 
     if parsed["action"] == "add":
         item = menu_service.find_item(parsed["item"])
@@ -410,7 +510,13 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return
 
-    recommendation = llm_service.recommend(text, menu_text)
+    try:
+        recommendation = llm_service.recommend(text, menu_text)
+    except Exception:
+        recommendation = (
+            "Minh chua xu ly duoc cau nay luc nay. "
+            "Ban thu ghi theo mau: Dat 1 tra sua truyen thong size L them tran chau den."
+        )
     await update.message.reply_text(recommendation)
 
 
