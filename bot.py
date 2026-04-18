@@ -415,9 +415,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 def main() -> None:
-    # 1) Render yêu cầu một ứng dụng Web Service phải mở một cổng (port).
-    # Nếu không, Render sẽ báo lỗi "No open ports detected" và hủy deploy.
-    # Ta tạo một HTTP server giả chạy ngầm trên một luồng (thread) phụ để vượt qua bài kiểm tra của Render.
     import os
     import threading
     from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -430,13 +427,16 @@ def main() -> None:
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(b"Bot is alive!")
+            def do_HEAD(self):
+                self.send_response(200)
+                self.end_headers()
+            def log_message(self, format, *args):
+                return
         httpd = HTTPServer(server_address, DummyHandler)
         httpd.serve_forever()
 
     threading.Thread(target=run_dummy_server, daemon=True).start()
 
-    # 2) Sửa lỗi "RuntimeError: There is no current event loop in thread"
-    # trên Python 3.14+ (môi trường mặc định mới của Render)
     import asyncio
     try:
         asyncio.get_event_loop()
